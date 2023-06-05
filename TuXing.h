@@ -22,7 +22,11 @@
 #include <QString>
 #include <QString>
 #include "ui_tuxing.h"
+#include <QtSql/qsqldatabase.h>
+#include <QtSql/qsqlerror.h>
+#include<QtSql/qsqlquery.h>
 
+//QSqlDatabase QSqlDatabase::defaultConnection = QSqlDatabase();
 using namespace std;
 
 const double PI = 3.141593;
@@ -76,12 +80,18 @@ public:
     QColor& getBorderColor() { return BorderColor; }
     QColor& getFillColor() { return FillColor; }
     double& getBorderWidth() { return BorderWidth; }
+    int getBorderstyle() {
+        return BorderStyle;
+    }
+    int getFillstyle() {
+        return FillStyle;
+    }
     void setP(QVector<Point*> geo) { p = geo; }
     void setBorderColor(QColor c) { BorderColor = c; }
     void setFillColor(QColor c) { FillColor = c; }
     void setBorderWidth(double BW) { BorderWidth = BW; }
     virtual void Build(char* buf, int size) { }
-    virtual const char* getname() = 0;
+    virtual const char* getname() = 0;//获取类型
     virtual BBox GetBBox() const = 0; //获取最小外包矩形
     virtual double getArea() = 0;
     virtual double getLength() = 0;
@@ -208,7 +218,7 @@ public:
     void modifyBorderWidth()
     {
         bool ok;
-        int age = QInputDialog::getInt(myMainWindow, "Modify Border Width", "Please input border width of geometry", 3, 0, 10, 1, &ok);
+        int age = QInputDialog::getInt(myMainWindow, "Modify Border Width","Please input border width of geometry", 3, 0, 10, 1, &ok);
         if (ok)
             get_borderWidth() = age;
     }
@@ -418,7 +428,6 @@ public:
         p.push_back(&pt[0]);
     }
 };
-
 class CLine :public Graphic
 {public:
     CLine()
@@ -510,7 +519,6 @@ class CLine :public Graphic
         }
     }
 };
-
 class CPolygon :public Graphic
 {
 public:
@@ -618,7 +626,6 @@ public:
         }
     }
 };
-
 class CRectangle : public Graphic
 {
 public:
@@ -708,7 +715,6 @@ public:
     }
 
 };
-
 class CCircle :public Graphic
 {
 public:
@@ -783,7 +789,6 @@ public:
         return QString::fromStdString(ofs.str());
     }
 };
-
 class CSector :public Graphic
 {
 public:
@@ -859,7 +864,6 @@ public:
         return QString::fromStdString(ofs.str());
     }
 };
-
 class PointView : public CPoint, public View
 {
 public:
@@ -1636,13 +1640,13 @@ private slots:
         void importFile();
         void openFile();
         void saveFile();
-
+        void  saveSQL();
+      // static void ConnectionSQL();
 private:
     Ui::TuXingClass* ui;
     int num_layer = 0;
 };
 extern Handle* ppt;
-
 class SelectCommand : public Command
 {
     Q_OBJECT
@@ -1665,7 +1669,6 @@ public slots:
         ppt = new SelectHandle;
     }
 };
-
 class BoxSelectCommand : public Command
 {
     Q_OBJECT
@@ -1688,7 +1691,6 @@ public slots:
         ppt = new BoxSelectHandle;
     }
 };
-
 class CreateCommand : public Command
 {
     Q_OBJECT
@@ -1711,7 +1713,6 @@ public slots:
         ppt = new CreateHandle;
     }
 };
-
 class EditCommand : public Command
 {
     Q_OBJECT
@@ -1734,7 +1735,6 @@ public slots:
         ppt = new EditHandle;
     }
 };
-
 class TranslateCommand : public Command
 {
     Q_OBJECT
@@ -1757,7 +1757,6 @@ public slots:
         ppt = new TranslateHandle;
     }
 };
-
 class RotateCommand : public Command
 {
     Q_OBJECT
@@ -1780,7 +1779,6 @@ public slots:
         ppt = new RotateHandle;
     }
 };
-
 class ScaleCommand : public Command
 {
     Q_OBJECT
@@ -1803,7 +1801,6 @@ public slots:
         ppt = new ScaleHandle;
     }
 };
-
 class DeleteCommand : public Command
 {
     Q_OBJECT
@@ -1826,7 +1823,6 @@ public slots:
         ppt = new DeleteHandle;
     }
 };
-
 class ModifyBorderColorCommand : public Command
 {
     Q_OBJECT
@@ -1849,7 +1845,6 @@ public slots:
        ppt = new ModifyBorderColorHandle;
     }
 };
-
 class ModifyFillColorCommand : public Command
 {
     Q_OBJECT
@@ -1872,7 +1867,6 @@ public slots:
         ppt = new ModifyFillColorHandle;
     }
 };
-
 class ModifyBorderWidthCommand : public Command
 {
     Q_OBJECT
@@ -2002,7 +1996,6 @@ public:
             return d;
         }
     };
-
     iterator begin()
     {
         return iterator(ifs, 100);
@@ -2013,7 +2006,6 @@ public:
         int size0 = ifs.tellg();
         return iterator(ifs, size0);
     }
-
 private:
     int GetBigInt()
     {
@@ -2038,9 +2030,7 @@ private:
         return d;
     }
 };
-
 ostream& operator<<(ostream& out, BBox& box);
-
 class FileData
 {
     std::fstream file;
@@ -2134,8 +2124,8 @@ public:
         delete ptr;
         return true;
     }
-    bool getShp(QString fname, QVector<Graphic*>& array)
-    {
+bool getShp(QString fname, QVector<Graphic*>& array)
+{
         //将shp格式转换为自定义格式
         Shapefile shp;
         if (!shp.Open(fname.toStdString()))
@@ -2150,7 +2140,7 @@ public:
             array.push_back(*it);
         }
         return true;
-    }
+}
 bool getTxt(QString str, QVector<Graphic*>& array)
 {
         Graphic* ptr = NULL;
@@ -2242,8 +2232,7 @@ bool getTxt(QString str, QVector<Graphic*>& array)
         delete ptr;
         return true;
     }
-   
-    bool saveData(QString address, QVector<Graphic*> array)
+bool saveData(QString address, QVector<Graphic*> array)
     {
         QFile file(address);
         QTextStream out(&file);
@@ -2260,8 +2249,165 @@ bool getTxt(QString str, QVector<Graphic*>& array)
         file.close();
         return true;
     }
+    bool Databasesave(QString address, QVector<Graphic*> array)
+    {
+      
+       
+        QSqlDatabase db = QSqlDatabase::addDatabase("QODBC");
+        qDebug() << "ODBC driver?" << db.isValid();
+        //db.setDatabaseName("DRIVER={SQL Server};SERVER=localhost;DATABASE=Shape;Trusted_Connection=yes;");
+        //QString dsn = QString::fromLocal8Bit("QTDSN");      //数据源名称
+        db.setHostName("localhost");                        //选择本地主机，127.0.1.1
+        db.setDatabaseName("Shape");                            //设置数据源名称
+        db.setUserName("sa");                               //登录用户
+        db.setPassword("2017Bbvc");                           //密码
+        //db.setConnectOptions("Integrated Security=SSPI;");  // 启用Windows身份验证
+        if (!db.open()) {
+             // qDebug() << db.lastError().text();
+            // QMessageBox::critical(0, QObject::tr("Database error"), db.lastError().text());
+           qDebug() << "open failed ";
+           return false;
+        }
+        else
+        {
+            qDebug() << "open";
+        }
+        int k = 0;  
+        QSqlQuery query(db);
+        for (int i = 0; i < array.size(); i++)
+        {
+            if (array[i]->getname() == "POINT")
+            {
+              
+                QString sql = "INSERT INTO [Shape].[dbo].[Point](x,y,id) VALUES (':a', ':b',':k')";
+               
+                query.prepare(sql); 
+                query.bindValue(":a", array[i]->getP()[0]->x);
+                query.bindValue(":b", array[i]->getP()[0]->y);
+                query.bindValue(":k", k); 
+             
+                if (!query.exec()) {
+                    qDebug() << "Error executing query: " << query.lastError().text();
+                }
+                else {
+                    qDebug() << "Shape successfully inserted into database!";
+                }
+                QString sql2 = "INSERT INTO [Shape].[dbo].[Shape] VALUES(':id',':PIdMin',':PIdMax',':Fillcolor',':Fillstyle',':Bordercolor',':Borderstyle','POINT')";
+                query.prepare(sql2);   
+                query.bindValue (":id",i);
+                query.bindValue (":PIdMin",k);
+                query.bindValue (":PIdMax",k);
+                query.bindValue (":Fillcolor", array[i]->getFillColor());
+                query.bindValue (":Fillstyle",array[i]->getFillstyle());
+                query.bindValue (":Bordercolor",array[i]->getBorderColor());
+                query.bindValue (":Borderstyle",array[i]->getBorderstyle()); k++;
+                if (!query.exec()) {
+                    qDebug() << "Error executing query: " << query.lastError().text();
+                }
+                else {
+                    qDebug() << "Shape successfully inserted into database!";
+                }
+            }
+            else if (array[i]->getname() == "LINESTRING")
+            {
+                int idmin = k;
+                for (int j = 0; j < array[i]->getP().size(); j++) {
+                    QString sql = "INSERT INTO [Shape].[dbo].[Point](x,y,id) VALUES (':a', ':b',':k')";
+                    query.prepare(sql);
+                    query.bindValue(":a", array[i]->getP()[j]->x);
+                    query.bindValue(":b", array[i]->getP()[j]->y);
+                    query.bindValue(":k", k);
+                    k++;
+                    query.exec();
+                }
+                int idmax = k;
+                QString sql2 = "INSERT INTO [Shape].[dbo].[Shape] VALUES(':id',':PIdMin',':PIdMax',':Fillcolor',':Fillstyle',':Bordercolor',':Borderstyle','LINESTRING')";
+                query.prepare(sql2);
+                query.bindValue(":id", i);
+                query.bindValue(":PIdMin", idmin);
+                query.bindValue(":PIdMax", idmax);
+                query.bindValue(":Fillcolor", array[i]->getFillColor());
+                query.bindValue(":Fillstyle", array[i]->getFillstyle());
+                query.bindValue(":Bordercolor", array[i]->getBorderColor());
+                query.bindValue(":Borderstyle", array[i]->getBorderstyle());
+                if (!query.exec()) {
+                    qDebug() << "Error executing query: " << query.lastError().text();
+                }
+                else {
+                    qDebug() << "Shape successfully inserted into database!";
+                }
+            }
+            else if (array[i]->getname() == "POLYGON")
+            {
+             int idmin = k;
+             for (int j = 0; j < array[i]->getP().size(); j++) {
+                 QString sql = "INSERT INTO [Shape].[dbo].[Point](x,y,id) VALUES (':a', ':b',':k')";
+                 query.prepare(sql);
+                 query.bindValue(":a", array[i]->getP()[j]->x);
+                 query.bindValue(":b", array[i]->getP()[j]->y);
+                 query.bindValue(":k", k);
+                 k++;
+                 query.exec();
+             }
+             int idmax = k;
+             QString sql2 = "INSERT INTO [Shape].[dbo].[Shape] VALUES(':id',':PIdMin',':PIdMax',':Fillcolor',':Fillstyle',':Bordercolor',':Borderstyle','POLYGON')";
+             query.prepare(sql2);
+             query.bindValue(":id", i);
+             query.bindValue(":PIdMin", idmin);
+             query.bindValue(":PIdMax", idmax);
+             query.bindValue(":Fillcolor", array[i]->getFillColor());
+             query.bindValue(":Fillstyle", array[i]->getFillstyle());
+             query.bindValue(":Bordercolor", array[i]->getBorderColor());
+             query.bindValue(":Borderstyle", array[i]->getBorderstyle());
+            }
+            if (!query.exec()) {
+                qDebug() << "Error executing query: " << query.lastError().text();
+            }
+            else {
+                qDebug() << "Shape successfully inserted into database!";
+            }
+        } return true;
+    }
+   
 };
+static void ConnectionSQL(QSqlDatabase db)
+{// 建立与数据库的连接
+    db = QSqlDatabase::addDatabase("QODBC");
+    qDebug() << "ODBC driver?" << db.isValid();
+    //db.setDatabaseName("DRIVER={SQL Server};SERVER=localhost;DATABASE=Shape;Trusted_Connection=yes;");
+    //QString dsn = QString::fromLocal8Bit("QTDSN");      //数据源名称
+    db.setHostName("localhost");                        //选择本地主机，127.0.1.1
+    db.setDatabaseName("Shape");                            //设置数据源名称
+    db.setUserName("sa");                               //登录用户
+    db.setPassword("2017Bbvc");                           //密码
+    //db.setConnectOptions("Integrated Security=SSPI;");  // 启用Windows身份验证
+    if (!db.open()) {
+        // qDebug() << db.lastError().text();
+        // QMessageBox::critical(0, QObject::tr("Database error"), db.lastError().text());
+        qDebug() << "open failed ";
+    } 
+    else
+    {
+        qDebug() << "open";
+        // 将图形存入容器
+     /*  QVector<Graphic*> g;
+        g.push_back({ Point, "POINT(1 2)" });
+        g.push_back({ LineString, "LINESTRING(3 4,5 6,7 8)" });
+        g.push_back({ Polygon, "POLYGON((0 0,0 1,1 1,1 0,0 0))" });*/
 
+        //   插入图形数据到数据库中
+      /*  QSqlQuery query(db);
+        QString sql = "INSERT INTO [Shape].[dbo].[Point](x,y,id) VALUES ('2198', '51','2917')";
+   
+        if (query.exec(sql))
+        {
+            qDebug() << "succeed";
+        }
+        else {
+            qDebug() << query.lastError().text();
+        }*/
+    }
+}
 //void getview(QVector<Graphic*>& geom, int i);
 
 #endif // MAINWINDOW_H

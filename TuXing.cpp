@@ -18,7 +18,7 @@ Handle* pt;
 
 double distance(double x,double y,double x0,double y0){
     {
-        return sqrt((x - x0) * (x - x0) + (y - y0) * (  y  -  y0 ) ) ;
+        return sqrt((x - x0) * (x - x0) + (y - y0) * (y-y0)) ;
     }
 }
 ostream& operator<<(ostream& out, BBox& box)
@@ -70,7 +70,10 @@ MainWindow::MainWindow(QWidget* parent):QMainWindow(parent),ui(new Ui::TuXingCla
    connect(menuA->actions().at(1), &QAction::triggered, this, &MainWindow::openFile);
    connect(menuA->actions().at(2), &QAction::triggered, this, &MainWindow::importFile);
    connect(menuA->actions().at(3), &QAction::triggered, this, &MainWindow::saveFile);
-  // connect(menuA->actions().at(4), &QAction::triggered, this, &MainWindow::getView);
+  connect(menuA->actions().at(4), &QAction::triggered, this, &MainWindow::saveSQL);
+  // ConnectionSQL();
+   //qDebug() << QSqlDatabase::drivers();
+   
 }
 MainWindow::~MainWindow()
 {
@@ -135,11 +138,9 @@ void MainWindow::on_listWidget_itemClicked(QListWidgetItem* item)
     currentLayer = LayerList[((QString)(item->text().back())).toInt()];
     repaint();
 }
-
 void MainWindow::on_actionBuffer_Analyze_triggered()
 {
 }
-
 void MainWindow::on_actionReposition_triggered()
 {
     windowTranslateAccumalation.x = 0;
@@ -151,7 +152,6 @@ void MainWindow::on_actionReposition_triggered()
     windowScaletime = 1;
     repaint();
 }
-
 void MainWindow::openFile()
 {
     QString filter = tr("GISLite File (*.gisk);");
@@ -182,10 +182,8 @@ void MainWindow::openFile()
     }
     repaint();
 }
-
 void MainWindow::importFile()
-{
-    QString filter = tr("Text Files (*.txt);;ShapeFile (*.shp);;All Files (*)");
+{try{ QString filter = tr("Text Files (*.txt);;ShapeFile (*.shp);;All Files (*)");
     QStringList FileName = QFileDialog::getOpenFileNames(this, tr("Open File"), "", filter);
     if (FileName.isEmpty())
     {
@@ -213,9 +211,12 @@ void MainWindow::importFile()
             LayerList.last()->getVector().push_back(view);
         }
     }
-    repaint();
+    repaint();}
+catch(std::exception& e)
+{
+    qDebug() << "Exception caught:";
 }
-
+}
 void MainWindow::saveFile()
 {
     QString savePath = QFileDialog::getSaveFileName(nullptr, "Save File", "", "GISLite File (*.gisk)");
@@ -228,7 +229,22 @@ void MainWindow::saveFile()
     {   
         FileData F;
         F.saveData(savePath, g);
+
 	}
+}
+void MainWindow::saveSQL()
+{
+    QMessageBox::StandardButton reply;
+    reply = QMessageBox::question(this, "Confirmation", "save", QMessageBox::Yes | QMessageBox::No);
+    if (reply == QMessageBox::Yes) {
+        QString address; FileData F;
+        // 用户选择了“是”按钮，执行相关操作
+       F.Databasesave(address, g);
+    }
+    else {
+        // 用户选择了“否”按钮或关闭了对话框，不执行任何操作
+    }
+
 }
 void MainWindow::weizhi(QListWidgetItem* item)
 {
